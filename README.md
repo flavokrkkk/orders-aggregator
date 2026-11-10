@@ -17,7 +17,7 @@ docker load -i ../orders-mock-amd64.tar.gz   # x86_64
 ```
 
 ```bash
-cp .env.example .env
+cp .env.example .env        # читается сервисом и тестами автоматически; переменные окружения приоритетнее
 docker compose up -d        # PostgreSQL (+ тестовая БД orders_test) и внешний API на :4000
 npm install
 npm run migrate
@@ -64,7 +64,7 @@ test/                 интеграционные тесты на реальн�
 |---|---|---|
 | POST | `/sync` | Забрать все заказы из внешнего API. Отвечает статистикой, когда всё забрано |
 | POST | `/webhooks/order` | Обновление заказа (тело — `Order` внешнего API). Повтор/устаревшая версия → `200 { result: "stale" }` |
-| GET | `/customers/:id/daily-totals?from=YYYY-MM-DD&to=YYYY-MM-DD` | Сумма оплаченных (`paid`) заказов по дням в таймзоне клиента: `[{ date, total }]` |
+| GET | `/customers/:id/daily-totals?from=YYYY-MM-DD&to=YYYY-MM-DD` | Оплаченные (`paid`) заказы по дням в таймзоне клиента (день — по смещению таймзоны в момент заказа, с учётом перехода на летнее время): `[{ date, total, gross, discount, net }]`. `gross` — до скидки, `net` — фактически оплачено, `discount = gross - net`, `total = gross` (обратная совместимость). Период — не больше 366 дней |
 | GET | `/health` | Проверка живости |
 
 ## Внешний API (`ORDERS_API_URL`)
@@ -86,4 +86,11 @@ type Order = {
 };
 ```
 
-`discountPercent` и `amountPaid` появились в API недавно и сервисом пока не используются.
+`discountPercent` и `amountPaid` появились в API недавно: у заказов, созданных до 2026-03-15, их нет — такие заказы считаются без скидки.
+Источник правды для `net` — `amountPaid`; если его нет, а `discountPercent` есть — оплата считается по проценту.
+
+### Обновление со старой версии
+
+Миграция `002_discounts.sql` добавляет колонки `discount_percent` и `amount_paid_kop` (у уже сохранённых заказов — `NULL`,
+в статистике для них `net = gross`). Чтобы дозаполнить скидки, после деплоя выполните `POST /sync`: строки без скидочных
+данных перезаписываются и той же версией заказа.

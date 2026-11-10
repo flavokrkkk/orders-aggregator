@@ -1,3 +1,11 @@
+// README предлагает `cp .env.example .env`, но раньше .env никто не читал и сервис молча шёл на дефолты.
+// Переменные окружения процесса имеют приоритет над .env; файла может не быть.
+try {
+  process.loadEnvFile();
+} catch {
+  // нет .env или Node < 20.12 — работаем на переменных окружения и дефолтах
+}
+
 function required(name: string, fallback?: string): string {
   const value = process.env[name] ?? fallback;
   if (value === undefined || value === "") {

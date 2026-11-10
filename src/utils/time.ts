@@ -29,7 +29,11 @@ export function tzOffsetMinutes(timeZone: string, at: Date): number {
   return Math.round((asUtc - Math.floor(at.getTime() / 1000) * 1000) / 60_000);
 }
 
-/** Календарная дата (YYYY-MM-DD) момента `at` при смещении `offsetMinutes`. */
+/**
+ * Календарная дата (YYYY-MM-DD) момента `at` при фиксированном смещении `offsetMinutes`.
+ * Для дат в таймзоне клиента не подходит, если смещение взято не на сам момент `at`:
+ * из-за перехода на летнее время оно меняется в течение года.
+ */
 export function dateAtOffset(at: Date, offsetMinutes: number): string {
   return new Date(at.getTime() + offsetMinutes * 60_000).toISOString().slice(0, 10);
 }
